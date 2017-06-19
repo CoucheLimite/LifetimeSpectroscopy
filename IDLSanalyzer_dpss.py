@@ -635,8 +635,8 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                                    p0) * vth_e / vth_e300
         return EtRange, k, TauMinor
 
-        def NT(self):
-            pass
+    def NT(self):
+        pass
 
 
 if __name__ == '__main__':
