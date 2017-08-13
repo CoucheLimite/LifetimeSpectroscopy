@@ -12,10 +12,12 @@ import matplotlib.pyplot as plt
 from semiconductor.electrical.ionisation import Ionisation as Ion
 from semiconductor.material.intrinsic_carrier_density import IntrinsicCarrierDensity as NI
 from semiconductor.material.thermal_velocity import ThermalVelocity as the_vel
+from semiconductor.general_functions.carrierfunctions import get_carriers
 from semiconductor.material.densityofstates import DOS as dos
 from semiconductor.general_functions import carrierfunctions as CF
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize
 import scipy.constants as const
+import Newton as nt
 
 
 class fitres(object):
@@ -43,7 +45,7 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.mainwindow = mainwindow
         self.currentfitres = None
         self.fitreslist = []
-        self.currentvroid = 0
+        self.currentbroid = 0
 
         self.listWidget_fit.setSelectionMode(
             QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -70,6 +72,13 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
 
         self.lineEdit_fitini1.textChanged[str].connect(self.enablewidgts)
         self.lineEdit_fitini2.textChanged[str].connect(self.enablewidgts)
+        self.lineEdit_Etlb.textChanged[str].connect(self.enablewidgts)
+        self.lineEdit_Etub.textChanged[str].connect(self.enablewidgts)
+        self.lineEdit_dEt.textChanged[str].connect(self.enablewidgts)
+        self.lineEdit_klb.textChanged[str].connect(self.enablewidgts)
+        self.lineEdit_kup.textChanged[str].connect(self.enablewidgts)
+        self.lineEdit_dk.textChanged[str].connect(self.enablewidgts)
+        self.lineEdit_simufitk.textChanged[str].connect(self.enablewidgts)
 
         self.figure = plt.figure()
         self.canvas = FigureCanvas(self.figure)
@@ -85,9 +94,6 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
 
         self.pushButton_set2.clicked.connect(self.opensetparam2)
         self.pushButton_set2.setEnabled(False)
-
-        self.pushButton_NT.clicked.connect(self.NT)
-        self.pushButton_NT.setEnabled(False)
 
         self.pushButton_dpss.clicked.connect(self.dpss)
         self.pushButton_dpss.setEnabled(False)
@@ -112,6 +118,12 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
 
         self.pushButton_delfitres.clicked.connect(self.delfit)
         self.pushButton_delfitres.setEnabled(False)
+
+        self.pushButton_twolevelsfit.clicked.connect(self.twolevelfit)
+        self.pushButton_twolevelsfit.setEnabled(False)
+
+        self.pushButton_showfitting.clicked.connect(self.showfitting)
+        self.pushButton_showfitting.setEnabled(False)
 
         self.radioButton_ind.toggled.connect(self.enablewidgts)
 
@@ -293,6 +305,26 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         else:
             self.pushButton_delfitres.setEnabled(False)
             self.pushButton_dpss.setEnabled(False)
+        if len(self.listWidget_fit.selectedItems()) > 1 and self.radioButton_simu.isChecked() == True:
+            try:
+                if float(self.lineEdit_Etlb.text()) < float(self.lineEdit_Etub.text()) and float(self.lineEdit_klb.text()) < float(self.lineEdit_kup.text()) and float(self.lineEdit_klb.text()) > 0 and int(self.lineEdit_dEt.text()) > 0 and int(self.lineEdit_dk.text()) > 0:
+                    self.pushButton_simufit.setEnabled(True)
+                else:
+                    self.pushButton_simufit.setEnabled(False)
+            except ValueError:
+                self.pushButton_simufit.setEnabled(False)
+        else:
+            self.pushButton_simufit.setEnabled(False)
+
+        try:
+            float(self.lineEdit_simufitEt.text())
+            self.pushButton_1dplot.setEnabled(True)
+            self.pushButton_2dplot.setEnabled(True)
+            self.pushButton_showfitting.setEnabled(True)
+        except ValueError:
+            self.pushButton_1dplot.setEnabled(False)
+            self.pushButton_2dplot.setEnabled(False)
+            self.pushButton_showfitting.setEnabled(False)
 
     def opensetparam2(self):
         self.dialog = QtWidgets.QDialog()
@@ -465,8 +497,8 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                 'Cannot fit, try to change the initial fit range or go back to data process', fontsize=10)
 
     def generatebroid(self):
-        self.currentvroid += 1
-        return (self.currentvroid - 1)
+        self.currentbroid += 1
+        return (self.currentbroid - 1)
 
     def onefit(self):
         self.pushButton_acceptfit.setEnabled(True)
@@ -502,6 +534,9 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.currentfitres = [fitres(
             name='single defect_' + data2fit.name, Ndop=data2fit.Ndop, temp=data2fit.temp, doptype=data2fit.doptype, m=m, b=b, parentid=data2fit.uid)]
 
+    def twolevelfit(self):
+        pass
+
     def acceptfit(self):
         self.pushButton_acceptfit.setEnabled(False)
         self.fitreslist.extend(self.currentfitres)
@@ -520,14 +555,225 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         for fitres in self.fitreslist:
             fitres.uid = self.fitreslist.index(fitres)
 
-    def onedplot(self):
-        pass
+    def SRHtau(self, nxc, Et, tau_e, tau_h, T, Na, Nd, ni_author, **kwargs):
+        ni = NI().update(temp=T, author=ni_author)
+        nh1 = ni * np.exp(-Et * const.e / (const.k * T))
+        ne1 = ni * np.exp(Et * const.e / (const.k * T))
+        ne, nh = get_carriers(Na=Na, Nd=Nd, nxc=nxc, temp=T, ni=ni)
+        U = (ne * nh - ni**2) / (tau_h * (ne + ne1) + tau_e * (nh + nh1))
+        return nxc / U
 
-    def twodplot(self):
-        pass
+    def SRHtau2(self, nxc, Et, tau_m, k, T, Ndop, doptype, ni_author, vth_author, ionauthor, **kwargs):
+        vth_e300, vth_h300 = the_vel().update(temp=300, author=vth_author)
+        ni = NI().update(temp=T, author=ni_author)
+        nh1 = ni * np.exp(-Et * const.e / (const.k * T))
+        ne1 = ni * np.exp(Et * const.e / (const.k * T))
+        vth_e, vth_h = the_vel().update(temp=T, author=vth_author)
+        if doptype == 'n':
+            Nd = Ion(temp=T).update_dopant_ionisation(
+                N_dop=Ndop, nxc=nxc, impurity='phosphorous', author=ionauthor)
+            Na = 0
+            tau_e = tau_m * vth_h300 / vth_e / k
+            tau_h = tau_m * vth_h300 / vth_h
+        elif doptype == 'p':
+            Na = Ion(temp=T).update_dopant_ionisation(
+                N_dop=Ndop, nxc=0, impurity='boron', author=ionauthor)
+            Nd = 0
+            tau_e = tau_m * vth_e300 / vth_e
+            tau_h = tau_m * k * vth_e300 / vth_h
+
+        ne, nh = get_carriers(Na=Na, Nd=Nd, nxc=nxc, temp=T, ni=ni)
+        U = (ne * nh - ni**2) / (tau_h * (ne + ne1) + tau_e * (nh + nh1))
+        return nxc / U
+
+    def minfunction_sameTaum(self, taum, nxclist, taulist, Et, k, Ndoplist, doptypelist, Tlist, ni_author, vth_author, ionauthor, ** kwarg):
+        res = 0
+        vth_e300, vth_h300 = the_vel().update(temp=300, author=vth_author)
+        for nxc, tau, Ndop, doptype, T in zip(nxclist, taulist, Ndoplist, doptypelist, Tlist):
+            vth_e, vth_h = the_vel().update(temp=T, author=vth_author)
+            if doptype == 'n':
+                Nd = Ion(temp=T).update_dopant_ionisation(
+                    N_dop=Ndop, nxc=nxc, impurity='phosphorous', author=ionauthor)
+                Na = 0
+                tausimu = self.SRHtau(nxc=nxc, Et=Et, tau_e=taum * vth_h300 / vth_e / k,
+                                      tau_h=taum * vth_h300 / vth_h, T=T, Na=Na, Nd=Nd, ni_author=ni_author)
+            elif doptype == 'p':
+                Na = Ion(temp=T).update_dopant_ionisation(
+                    N_dop=Ndop, nxc=0, impurity='boron', author=ionauthor)
+                Nd = 0
+                tausimu = self.SRHtau(nxc=nxc, Et=Et, tau_e=taum * vth_e300 / vth_e,
+                                      tau_h=taum * k * vth_e300 / vth_h, T=T, Na=Na, Nd=Nd, ni_author=ni_author)
+            res += np.sum(np.abs((np.asarray(tau) - np.asarray(tausimu)
+                                  ) / np.asarray(tau))) / len(nxc)
+        res /= len(nxclist)
+        return res
+
+    def simufit_variTaum(self, Etlist, klist, nxclist, taulist, Ndoplist, doptypelist, Tlist, ni_author, vth_author, ionauthor,  **kwarg):
+        ctperc = 0
+        x0 = [1e-6]
+        bounds = [(0, 1)]
+        taummap = np.zeros((len(Etlist), len(klist), len(nxclist)))
+        residualmap = np.zeros((len(Etlist), len(klist)))
+        for m in range(len(Etlist)):
+            Et = Etlist[m]
+            for n in range(len(klist)):
+                k = klist[n]
+                for t in range(len(nxclist)):
+                    nxc = nxclist[t]
+                    tau = taulist[t]
+                    Ndop = Ndoplist[t]
+                    doptype = doptypelist[t]
+                    T = Tlist[t]
+                    fitres = minimize(self.minfunction_sameTaum, x0=x0, args=(
+                        [nxc], [tau], Et, k, [Ndop], [doptype], [T], ni_author, vth_author, ionauthor), bounds=bounds)
+                    taummap[m, n, t] = fitres.x
+                    residualmap[m, n] += fitres.fun
+                    ctperc += 1 / len(Etlist) / len(klist) / len(nxclist)
+                    self.progressBar.setValue(ctperc * 100)
+        return taummap, residualmap
+
+    def simufit_sameTaum(self, Etlist, klist, nxclist, taulist, Ndoplist, doptypelist, Tlist, ni_author, vth_author, ionauthor, **kwarg):
+        ctperc = 0
+        x0 = [1e-6]
+        bounds = [(0, 1)]
+        taummap = np.zeros((len(Etlist), len(klist)))
+        residualmap = np.zeros((len(Etlist), len(klist)))
+        for m in range(len(Etlist)):
+            Et = Etlist[m]
+            for n in range(len(klist)):
+                k = klist[n]
+                fitres = minimize(self.minfunction_sameTaum, x0=x0, args=(
+                    nxclist, taulist, Et, k, Ndoplist, doptypelist, Tlist, ni_author, vth_author, ionauthor), bounds=bounds)
+                taummap[m, n] = fitres.x
+                residualmap[m, n] = fitres.fun
+                ctperc += 1 / len(Etlist) / len(klist)
+                self.progressBar.setValue(ctperc * 100)
+        return taummap, residualmap
 
     def simufit(self):
-        pass
+        self.currentsimufituid = []
+        self.progressBar.setValue(0)
+        for action in self.ionmodel.actions():
+            if action.isChecked():
+                self.simuionauthor = action.text()
+        for action in self.nimodel.actions():
+            if action.isChecked():
+                self.simuni_author = action.text()
+        for action in self.themodel.actions():
+            if action.isChecked():
+                self.simuvth_author = action.text()
+        self.Etscanlist = np.linspace(float(self.lineEdit_Etlb.text()), float(
+            self.lineEdit_Etub.text()), int(self.lineEdit_dEt.text()))
+        self.kscanlist = np.linspace(float(self.lineEdit_klb.text()), float(
+            self.lineEdit_kup.text()), int(self.lineEdit_dk.text()))
+        Ndoplist = []
+        Tlist = []
+        doptypelist = []
+        nxclist = []
+        taulist = []
+        for item in self.listWidget_fit.selectedItems():
+            for data in self.Rawdat:
+                if data.uid == item.data(32):
+                    self.currentsimufituid.append(data.uid)
+                    Ndoplist.append(data.Ndop)
+                    Tlist.append(data.temp)
+                    doptypelist.append(data.doptype)
+                    nxclist.append(data.nxc)
+                    taulist.append(data.tau)
+        if self.checkBox_sametaum.isChecked():
+            self.taummap, self.residualmap = self.simufit_sameTaum(Etlist=self.Etscanlist, klist=self.kscanlist, nxclist=nxclist, taulist=taulist,
+                                                                   Ndoplist=Ndoplist, doptypelist=doptypelist, Tlist=Tlist, ni_author=self.simuni_author, vth_author=self.simuvth_author, ionauthor=self.simuionauthor)
+        else:
+            self.taummap, self.residualmap = self.simufit_variTaum(Etlist=self.Etscanlist, klist=self.kscanlist, nxclist=nxclist, taulist=taulist,
+                                                                   Ndoplist=Ndoplist, doptypelist=doptypelist, Tlist=Tlist, ni_author=self.simuni_author, vth_author=self.simuvth_author, ionauthor=self.simuionauthor)
+        self.index = np.unravel_index(
+            np.argmin(self.residualmap), self.residualmap.shape)
+        self.lineEdit_simufitEt.setText(str(self.Etscanlist[self.index[0]]))
+        self.lineEdit_simufitk.setText(str(self.kscanlist[self.index[1]]))
+        self.lineEdit_simufittauminor.setText(str(self.taummap[self.index]))
+        self.showfitting()
+
+    def onedplot(self):
+        self.dialog1dplot = QtWidgets.QDialog()
+        self.onedvlayout = QVBoxLayout(self.dialog1dplot)
+        self.figure3 = plt.figure()
+        self.canvas3 = FigureCanvas(self.figure3)
+        self.toolbar3 = NavigationToolbar(self.canvas3, self)
+        self.onedvlayout.addWidget(self.canvas3)
+        self.onedvlayout.addWidget(self.toolbar3)
+        self.ax5 = self.figure3.add_subplot(211)
+        self.ax6 = self.figure3.add_subplot(212)
+        self.ax5.set_xlabel(r'$E_{t}-E_{i}$ [eV]')
+        self.ax5.set_ylabel('Residual')
+        self.ax6.set_xlabel('k')
+        self.ax6.set_ylabel('Residual')
+        self.ax5.semilogy()
+        self.ax6.semilogy()
+        self.ax5.plot(self.Etscanlist, self.residualmap[:, self.index[1]])
+        self.ax6.plot(self.kscanlist, self.residualmap[self.index[0], :])
+        self.figure3.tight_layout()
+        self.dialog1dplot.exec_()
+
+    def twodplot(self):
+        self.dialog2dplot = QtWidgets.QDialog()
+        self.twodvlayout = QVBoxLayout(self.dialog2dplot)
+        self.figure4 = plt.figure()
+        self.canvas4 = FigureCanvas(self.figure4)
+        self.toolbar4 = NavigationToolbar(self.canvas4, self)
+        self.twodvlayout.addWidget(self.canvas4)
+        self.twodvlayout.addWidget(self.toolbar4)
+        self.ax7 = self.figure4.add_subplot(111)
+        self.ax7.set_xlabel(r'$E_{t}-E_{i}$ [eV]')
+        self.ax7.set_ylabel('k')
+        hh = self.ax7.imshow(self.residualmap.T, cmap='hot', aspect='auto', extent=[
+            1.5 * self.Etscanlist[0] - 0.5 * self.Etscanlist[1], 1.5 * self.Etscanlist[-1] -
+            0.5 * self.Etscanlist[-2], 1.5 * self.kscanlist[0] - 0.5 * self.kscanlist[1], 1.5 * self.kscanlist[-1] - 0.5 * self.kscanlist[-2]], origin='lower')
+        # self.ax7.set_xticks(self.Etscanlist)
+        # self.ax7.set_yticks(self.kscanlist)
+        self.figure4.colorbar(hh)
+        self.figure4.tight_layout()
+        self.dialog2dplot.exec_()
+
+    def showfitting(self):
+        self.ax1.clear()
+        self.ax1.grid()
+        for simuid in self.currentsimufituid:
+            for data in self.Rawdat:
+                if data.uid == simuid:
+                    if type(self.taummap[self.index]) is np.float64:
+                        tau_m = self.taummap[self.index]
+                    else:
+                        tau_m = self.taummap[self.index][self.currentsimufituid.index(
+                            simuid)]
+                    tausimu = self.SRHtau2(nxc=data.nxc, Et=self.Etscanlist[self.index[0]], tau_m=tau_m, k=self.kscanlist[self.index[1]], T=data.temp, Ndop=data.Ndop, doptype=data.doptype, ni_author=self.simuni_author,
+                                           vth_author=self.simuvth_author, ionauthor=self.simuionauthor)
+                    if self.comboBox_plotopt2.currentIndex() == 0:
+                        X = self.getXY(nxc=data.nxc, T=data.temp,
+                                       Ndop=data.Ndop, doptype=data.doptype)
+                        self.ax1.set_xlabel(r'X/Y')
+                        self.ax1.set_ylabel('Lifetime [s]')
+                        self.ax1.plot(X, data.tau, '.', label=data.name)
+                        self.ax1.plot(X, tausimu, label=data.name + 'fit')
+                    elif self.comboBox_plotopt2.currentIndex() == 1:
+                        self.ax1.semilogx()
+                        self.ax1.set_ylabel('Lifetime [s]')
+                        self.ax1.set_xlabel(
+                            r'Excess carrier density $[cm^{-3}]$')
+                        self.ax1.plot(data.nxc, data.tau, '.', label=data.name)
+                        self.ax1.plot(data.nxc, tausimu,
+                                      label=data.name + 'fit')
+                    elif self.comboBox_plotopt2.currentIndex() == 2:
+                        self.ax1.semilogx()
+                        self.ax1.set_ylabel('Inverse Lifetime [s-1]')
+                        self.ax1.set_xlabel(
+                            r'Excess carrier density $[cm^{-3}]$')
+                        self.ax1.plot(data.nxc, 1. / data.tau,
+                                      '.', label=data.name)
+                        self.ax1.plot(data.nxc, 1. / tausimu,
+                                      label=data.name + 'fit')
+        self.ax1.legend(loc=0)
+        self.figure.tight_layout()
+        self.canvas.draw()
 
     def itemrightclicked(self):
         if len(self.listWidget_fitres.selectedItems()) > 0:
@@ -564,9 +810,11 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.dialogdpss = QtWidgets.QDialog()
         self.dialogdpss.setGeometry(400, 100, 600, 800)
         self.dpssvlayout = QVBoxLayout(self.dialogdpss)
-        self.NTbuttom = QPushButton('Display/hide Newton method result')
+        self.NTbuttom = QPushButton('Display Newton method result')
         self.NTbuttom.clicked.connect(self.NT)
         self.dpssvlayout.addWidget(self.NTbuttom)
+        if len(self.listWidget_fitres.selectedItems()) < 2:
+            self.NTbuttom.setEnabled(False)
         self.figure2 = plt.figure()
         self.canvas2 = FigureCanvas(self.figure2)
         self.toolbar2 = NavigationToolbar(self.canvas2, self)
@@ -574,12 +822,17 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.dpssvlayout.addWidget(self.toolbar2)
         self.ax3 = self.figure2.add_subplot(211)
         self.ax4 = self.figure2.add_subplot(212, sharex=self.ax3)
+        self.plotDPSS()
+        self.dialogdpss.exec_()
+
+    def plotDPSS(self):
+        self.ax3.clear()
+        self.ax4.clear()
         self.ax4.set_xlabel(r'$E_{t}-E_{i}$ [eV]')
         self.ax4.set_ylabel('k')
         self.ax3.set_ylabel(r'$\tau_{minor}$ [s]')
         self.ax3.semilogy()
         self.ax4.semilogy()
-        self.figure2.tight_layout()
         for item in self.listWidget_fitres.selectedItems():
             for fitres in self.fitreslist:
                 if fitres.uid == item.data(32):
@@ -588,7 +841,7 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                     self.ax3.plot(EtRange, TauMinor, label=fitres.name)
                     self.ax4.plot(EtRange, k, label=fitres.name)
         self.ax4.legend(loc=0)
-        self.dialogdpss.exec_()
+        self.figure2.tight_layout()
 
     def CalDPSS(self, m, b, T, Ndop, doptype, **kwarg):
         kb = const.k / const.e
@@ -636,7 +889,66 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         return EtRange, k, TauMinor
 
     def NT(self):
-        pass
+        for action in self.ionmodel.actions():
+            if action.isChecked():
+                ionauthor = action.text()
+        for action in self.nimodel.actions():
+            if action.isChecked():
+                niauthor = action.text()
+        for action in self.themodel.actions():
+            if action.isChecked():
+                theauthor = action.text()
+        self.plotDPSS()
+        mlist = []
+        blist = []
+        doplist = []
+        Tlist = []
+        doptypelist = []
+        for item in self.listWidget_fitres.selectedItems():
+            for fitres in self.fitreslist:
+                if fitres.uid == item.data(32):
+                    mlist.append(fitres.m)
+                    blist.append(fitres.b)
+                    doplist.append(fitres.Ndop)
+                    Tlist.append(fitres.temp)
+                    doptypelist.append(fitres.doptype)
+        mb = nt.generatemb(m=mlist, b=blist)
+        CaldtsList = nt.generteCaldts(
+            T=Tlist, Ndop=doplist, doptypelist=doptypelist, ionauthor=ionauthor, vthauthor=theauthor, niauthor=niauthor)
+        x0 = [0., 1e-16, 1]
+        resupall = nt.NewtonMethodUP(x0=x0, mb=mb,
+                                     CaldtsList=CaldtsList, MaxIntNum=2000)
+        resdownall = nt.NewtonMethodDOWN(x0=x0, mb=mb,
+                                         CaldtsList=CaldtsList, MaxIntNum=2000)
+        if resupall is not np.nan:
+            self.ax3.plot([resupall[0], resdownall[0]], [
+                          resupall[1], resdownall[1]], 'ro')
+        if resdownall is not np.nan:
+            self.ax4.plot([resupall[0], resdownall[0]], [
+                          resupall[2], resdownall[2]], 'ro')
+        if len(self.listWidget_fitres.selectedItems()) > 2:
+            for i in range(len(self.listWidget_fitres.selectedItems()) - 1):
+                for j in range(i + 1, len(self.listWidget_fitres.selectedItems())):
+                    m2list = [mlist[i], mlist[j]]
+                    b2list = [blist[i], blist[j]]
+                    dop2list = [doplist[i], doplist[j]]
+                    T2list = [Tlist[i], Tlist[j]]
+                    doptype2list = [doptypelist[i], doptypelist[j]]
+                    mb2 = nt.generatemb(m=m2list, b=b2list)
+                    CaldtsList2 = nt.generteCaldts(
+                        T=T2list, Ndop=dop2list, doptypelist=doptype2list)
+                    x0 = [0., 1e-16, 1]
+                    resup2 = nt.NewtonMethodUP(x0=x0, mb=mb2,
+                                               CaldtsList=CaldtsList2, MaxIntNum=2000)
+                    resdown2 = nt.NewtonMethodDOWN(x0=x0, mb=mb2,
+                                                   CaldtsList=CaldtsList2, MaxIntNum=2000)
+                    if resup2 is not np.nan:
+                        self.ax3.plot([resup2[0], resdown2[0]], [
+                                      resup2[1], resdown2[1]], 'ko')
+                    if resdown2 is not np.nan:
+                        self.ax4.plot([resup2[0], resdown2[0]], [
+                                      resup2[2], resdown2[2]], 'ko')
+        self.canvas2.draw()
 
 
 if __name__ == '__main__':
