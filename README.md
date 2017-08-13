@@ -5,7 +5,7 @@ It has some small data pre-process functions like cropping, intrinsic correction
 It can analysis data using three different methods:
 1. Defect parameter solution surface (DPSS method) using Murphy linearization [1-3]
 2. Newton method [4]
-3. Simultaneouly fitting [5, 6] (under construction, coming soon)
+3. Simultaneouly fitting [5, 6]
 Read the reference below to get more information on these methods
 
 ## Installation
@@ -23,8 +23,21 @@ The GUI is written in Python 3.6, but should work with any Python 3.x and 2.x if
 #### Reference
 
 [1] S. Rein, Lifetime Spectroscopy: A Method of Defect Characterization in Silicon for Photovoltaic Applications (Springer Science and Business Media, Berlin, 2006).
+
 [2] J.D. Murphy, K. Bothe, R. Krain, V. V Voronkov, and R.J. Falster, J. Appl. Phys. 111, 113709 (2012).
+
 [3] A.E. Morishige, M.A. Jensen, D.B. Needleman, K. Nakayashiki, J. Hofstetter, T.A. Li, and T. Buonassisi, IEEE J. Photovoltaics 6, 1466 (2016).
+
 [4] Y. Zhu, Q.T. Le Gia, M.K. Juhl, G. Coletti, and Z. Hameiri, IEEE J. Photovoltaics 1 (2017).
+
 [5] C. Sun, F.E. Rougieux, and D. Macdonald, J. Appl. Phys. 115, 214907 (2014).
+
 [6] S. Bernardini, T.U. Naerland, A.L. Blum, G. Coletti, and M.I. Bertoni, Prog. Photovoltaics Res. Appl. 25, 209 (2017).
+
+
+##### Update log
+14/08/2017 Major updates, simutaneously fitting enabled
+
+To be completed:
+1. Surface recombination subtraction
+2. Fitting of one defect with two levels
