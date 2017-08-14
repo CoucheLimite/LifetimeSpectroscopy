@@ -19,8 +19,20 @@ Simply download all the files and double click IDLSanalyzer.py or run it with Py
 
 The GUI is written in Python 3.6, but should work with any Python 3.x and 2.x if all the needed packages are installed (have't been tested yet)
 
+## Usage
 
-#### Reference
+1. Load the file
+2. Set or check parameters. (The color of the file will change to green after setting the parameters. Parameters will be read directly for Sinton excel files.)
+3. Process if you want. (merge two files, crop, inverse subtraction, subtract intrinsic)
+4. Add interested file to analysis list and start analysis
+5. Choose either fitting individually or fitting simultaneouly
+6. For fitting individually, choose just one file, select to fit with one defect or two (you can adjust the percentage for fitting the initial value), accept fitting if you are satisfied, choose the fiited defects for DPSS or Newton method 
+7. For fitting simultaneouly, choose multiple files and set the fitting range, and click fit. This method can take a long time so start with less steps
+
+Everything should be pretty straightfoward to use. Each pushbuttom is enabled only after all the necessary requirements are met. (correct selection from the list, parameters inputed, ect.)
+If you have any problems or suggestions, please feel free to contact me.
+
+## Reference
 
 [1] S. Rein, Lifetime Spectroscopy: A Method of Defect Characterization in Silicon for Photovoltaic Applications (Springer Science and Business Media, Berlin, 2006).
 
@@ -35,9 +47,10 @@ The GUI is written in Python 3.6, but should work with any Python 3.x and 2.x if
 [6] S. Bernardini, T.U. Naerland, A.L. Blum, G. Coletti, and M.I. Bertoni, Prog. Photovoltaics Res. Appl. 25, 209 (2017).
 
 
-##### Update log
+## Update log
 14/08/2017 Major updates, simutaneously fitting enabled
 
 To be completed:
 1. Surface recombination subtraction
 2. Fitting of one defect with two levels
+3. Calculation of the standard deviation of the DPSS curves
