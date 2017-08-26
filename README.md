@@ -49,8 +49,10 @@ If you have any problems or suggestions, please feel free to contact me.
 
 ## Update log
 14/08/2017 Major updates, simutaneously fitting enabled
+26/08/2017 Add plot of the standard deviation of the DPSS curves
 
 To be completed:
 1. Surface recombination subtraction
 2. Fitting of one defect with two levels
-3. Calculation of the standard deviation of the DPSS curves
+<strike>3. Calculation of the standard deviation of the DPSS curves</strike>
+4. Export data
