@@ -808,7 +808,7 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
 
     def dpss(self):
         self.dialogdpss = QtWidgets.QDialog()
-        self.dialogdpss.setGeometry(400, 100, 600, 800)
+        self.dialogdpss.setGeometry(400, 50, 600, 950)
         self.dpssvlayout = QVBoxLayout(self.dialogdpss)
         self.NTbuttom = QPushButton('Display Newton method result')
         self.NTbuttom.clicked.connect(self.NT)
@@ -820,19 +820,24 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.toolbar2 = NavigationToolbar(self.canvas2, self)
         self.dpssvlayout.addWidget(self.canvas2)
         self.dpssvlayout.addWidget(self.toolbar2)
-        self.ax3 = self.figure2.add_subplot(211)
-        self.ax4 = self.figure2.add_subplot(212, sharex=self.ax3)
+        self.ax3 = self.figure2.add_subplot(311)
+        self.ax4 = self.figure2.add_subplot(312, sharex=self.ax3)
+        self.ax44 = self.figure2.add_subplot(313, sharex=self.ax3)
         self.plotDPSS()
         self.dialogdpss.exec_()
 
     def plotDPSS(self):
         self.ax3.clear()
         self.ax4.clear()
-        self.ax4.set_xlabel(r'$E_{t}-E_{i}$ [eV]')
+        self.ax44.clear()
+        self.ax44.set_xlabel(r'$E_{t}-E_{i}$ [eV]')
         self.ax4.set_ylabel('k')
+        self.ax44.set_ylabel(r'Std Dev of the $E_{t}-k$ curves')
         self.ax3.set_ylabel(r'$\tau_{minor}$ [s]')
         self.ax3.semilogy()
         self.ax4.semilogy()
+        self.ax44.semilogy()
+        klist = []
         for item in self.listWidget_fitres.selectedItems():
             for fitres in self.fitreslist:
                 if fitres.uid == item.data(32):
@@ -840,8 +845,13 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                         m=fitres.m, b=fitres.b, T=fitres.temp, Ndop=fitres.Ndop, doptype=fitres.doptype)
                     self.ax3.plot(EtRange, TauMinor, label=fitres.name)
                     self.ax4.plot(EtRange, k, label=fitres.name)
+                    klist.append(k)
+        klist = np.asarray(klist)
+        stdk = np.std(klist, axis=0)
+        self.ax44.plot(EtRange, stdk)
         self.ax4.legend(loc=0)
-        self.figure2.tight_layout()
+        self.figure2.subplots_adjust(left=0.13, bottom=0.06,
+                                     right=0.9, top=0.96, wspace=0, hspace=0.23)
 
     def CalDPSS(self, m, b, T, Ndop, doptype, **kwarg):
         kb = const.k / const.e
