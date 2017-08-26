@@ -53,6 +53,6 @@ If you have any problems or suggestions, please feel free to contact me.
 
 To be completed:
 1. Surface recombination subtraction
-2. Fitting of one defect with two levels<br />
-<strike>3. Calculation of the standard deviation of the DPSS curves</strike><br />
+2. Fitting of one defect with two levels<br/>
+<strike>3. Calculation of the standard deviation of the DPSS curves</strike><br/>
 4. Export data
