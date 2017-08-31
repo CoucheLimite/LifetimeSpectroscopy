@@ -54,7 +54,7 @@ If you have any problems or suggestions, please feel free to contact me.
 
 26/08/2017 Add plot of the standard deviation of the DPSS curves
 
-31/08/2017 Majorupdates. Enable to export the data in the plot and the calculation of the standard deviation of the DPSS curves. Fixed some bugs in changing model. Add a section for a fitting mode with more freedom (still working on the coding of calculation)
+31/08/2017 Major updates. Enable to export the data in the plot and the calculation of the standard deviation of the DPSS curves. Fixed some bugs in changing model. Add a section for a fitting mode with more freedom (still working on the coding of calculation)
 
 
 To be completed:
