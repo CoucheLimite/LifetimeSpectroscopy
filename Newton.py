@@ -17,13 +17,15 @@ def generteCaldts(T, Ndop, doptypelist, ionauthor='Altermatt_2006_table1', vthau
         Ni = ni().update(temp=T[i], author=niauthor)
         doptype = doptypelist[i]
         if doptype == 'n':
-            Nidop = Ion(temp=T[i]).update_dopant_ionisation(
+            Nidop = Ion(temp=T[i], ni_author=ni_author).update_dopant_ionisation(
                 N_dop=Ndop[i], nxc=0, impurity='phosphorous', author=ionauthor)
-            n0, p0 = CF.get_carriers(1, Nidop, 0, temp=T[i])
+            n0, p0 = CF.get_carriers(
+                1, Nidop, 0, temp=T[i], ni_author=ni_author)
         elif doptype == 'p':
-            Nidop = Ion(temp=T[i]).update_dopant_ionisation(
+            Nidop = Ion(temp=T[i], ni_author=ni_author).update_dopant_ionisation(
                 N_dop=Ndop[i], nxc=0, impurity='boron', author=ionauthor)
-            n0, p0 = CF.get_carriers(Nidop, 0, 0, temp=T[i])
+            n0, p0 = CF.get_carriers(
+                Nidop, 0, 0, temp=T[i], ni_author=ni_author)
         dts = {
             'ni': Ni,
             'vth_e': vth_e,
