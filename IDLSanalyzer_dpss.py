@@ -652,6 +652,14 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         return taummap, residualmap
 
     def simufit(self):
+        for item in self.listWidget_fit.selectedItems():
+            for data in self.Rawdat:
+                if data.uid == item.data(32):
+                    dataitem = QListWidgetItem(
+                        parent=self.listWidget_simufitlist)
+                    dataitem.setText(data.name)
+                    dataitem.setData(32, data.uid)
+                    self.listWidget_simufitlist.addItem(dataitem)
         self.currentsimufituid = []
         self.progressBar.setValue(0)
         for action in self.ionmodel.actions():
