@@ -870,7 +870,7 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                 ionauthor = action.text()
         for action in self.nimodel.actions():
             if action.isChecked():
-                niauthor = action.text()
+                ni_author = action.text()
         for action in self.themodel.actions():
             if action.isChecked():
                 theauthor = action.text()
@@ -888,9 +888,9 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                 N_dop=Ndop, nxc=0, impurity='boron', author=ionauthor)
             n0, p0 = CF.get_carriers(Nidop, 0, 0, temp=T)
         for j in range(0, EtRange.shape[0]):
-            n1 = NI().update(temp=T, author=niauthor) * \
+            n1 = NI().update(temp=T, author=ni_author) * \
                 np.exp(EtRange[j] / kb / T)
-            p1 = NI().update(temp=T, author=niauthor) * \
+            p1 = NI().update(temp=T, author=ni_author) * \
                 np.exp(-EtRange[j] / kb / T)
             C = np.divide(m, (m + b))
             if doptype == 'n':
@@ -914,7 +914,7 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                 ionauthor = action.text()
         for action in self.nimodel.actions():
             if action.isChecked():
-                niauthor = action.text()
+                ni_author = action.text()
         for action in self.themodel.actions():
             if action.isChecked():
                 theauthor = action.text()
@@ -925,7 +925,7 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         Tlist = []
         doptypelist = []
         self.ntlist = []
-        for item in self.listWidget_fitres.s·electedItems():
+        for item in self.listWidget_fitres.selectedItems():
             for fitres in self.fitreslist:
                 if fitres.uid == item.data(32):
                     mlist.append(fitres.m)
@@ -935,7 +935,7 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                     doptypelist.append(fitres.doptype)
         mb = nt.generatemb(m=mlist, b=blist)
         CaldtsList = nt.generteCaldts(
-            T=Tlist, Ndop=doplist, doptypelist=doptypelist, ionauthor=ionauthor, vthauthor=theauthor, niauthor=niauthor)
+            T=Tlist, Ndop=doplist, doptypelist=doptypelist, ionauthor=ionauthor, vthauthor=theauthor, ni_author=ni_author)
         x0 = [0., 1e-16, 1]
         resupall = nt.NewtonMethodUP(x0=x0, mb=mb,
                                      CaldtsList=CaldtsList, MaxIntNum=2000)
