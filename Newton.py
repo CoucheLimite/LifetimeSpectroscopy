@@ -9,12 +9,12 @@ from semiconductor.general_functions import carrierfunctions as CF
 kb = const.k / const.e
 
 
-def generteCaldts(T, Ndop, doptypelist, ionauthor='Altermatt_2006_table1', vthauthor='Green_1990', niauthor='Couderc_2014', **kwarg):
+def generteCaldts(T, Ndop, doptypelist, ionauthor='Altermatt_2006_table1', vthauthor='Green_1990', ni_author='Couderc_2014', **kwarg):
     vth_e300, vth_h300 = Vel_th().update(temp=300, author=vthauthor)
     Caldts = []
     for i in range(len(T)):
         vth_e, vth_h = Vel_th().update(temp=T[i], author=vthauthor)
-        Ni = ni().update(temp=T[i], author=niauthor)
+        Ni = ni().update(temp=T[i], author=ni_author)
         doptype = doptypelist[i]
         if doptype == 'n':
             Nidop = Ion(temp=T[i], ni_author=ni_author).update_dopant_ionisation(
