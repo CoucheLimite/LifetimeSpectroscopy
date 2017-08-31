@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import os
+import time as tm
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QListWidgetItem, QLineEdit, QLabel, QRadioButton, QGridLayout, QPushButton, QAction, QActionGroup, QMenu, QInputDialog, qApp, QVBoxLayout
 from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import *
@@ -13,11 +14,11 @@ from semiconductor.electrical.ionisation import Ionisation as Ion
 from semiconductor.material.intrinsic_carrier_density import IntrinsicCarrierDensity as NI
 from semiconductor.material.thermal_velocity import ThermalVelocity as the_vel
 from semiconductor.general_functions.carrierfunctions import get_carriers
-from semiconductor.material.densityofstates import DOS as dos
 from semiconductor.general_functions import carrierfunctions as CF
 from scipy.optimize import curve_fit, minimize
 import scipy.constants as const
 import Newton as nt
+import pandas as pd
 
 
 class fitres(object):
@@ -110,6 +111,9 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.pushButton_2dplot.clicked.connect(self.twodplot)
         self.pushButton_2dplot.setEnabled(False)
 
+        self.pushButton_exportsimu.clicked.connect(self.exportsimu)
+        self.pushButton_exportsimu.setEnabled(False)
+
         self.pushButton_simufit.clicked.connect(self.simufit)
         self.pushButton_simufit.setEnabled(False)
 
@@ -119,13 +123,12 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.pushButton_delfitres.clicked.connect(self.delfit)
         self.pushButton_delfitres.setEnabled(False)
 
-        self.pushButton_twolevelsfit.clicked.connect(self.twolevelfit)
-        self.pushButton_twolevelsfit.setEnabled(False)
-
         self.pushButton_showfitting.clicked.connect(self.showfitting)
         self.pushButton_showfitting.setEnabled(False)
 
         self.radioButton_ind.toggled.connect(self.enablewidgts)
+
+        self.pushButton_expplot2.clicked.connect(self.expplot2)
 
         for data in self.Rawdat:
             if data.uid in self.uidlist:
@@ -134,28 +137,20 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                 dataitem.setData(32, data.uid)
                 self.listWidget_fit.addItem(dataitem)
 
-        availablDOS = dos().available_models()
         availablNI = NI().available_models()
         availablIon = Ion().available_models()
         availablthervel = the_vel().available_models()
 
         self.menubar = self.menuBar()
         self.choosmodel = self.menubar.addMenu('Choose your models')
-        self.dosmodel = self.choosmodel.addMenu('Density of states')
         self.nimodel = self.choosmodel.addMenu('ni models')
         self.ionmodel = self.choosmodel.addMenu('Ionisation')
         self.themodel = self.choosmodel.addMenu('thermal velocity')
 
-        self.dosgroup = QActionGroup(self, exclusive=True)
         self.nigroup = QActionGroup(self, exclusive=True)
         self.iongroup = QActionGroup(self, exclusive=True)
         self.thegroup = QActionGroup(self, exclusive=True)
 
-        for dosmodel in availablDOS:
-            a = self.dosgroup.addAction(QAction(dosmodel, checkable=True))
-            if dosmodel == 'Couderc_2014':
-                a.setChecked(True)
-            self.dosmodel.addAction(a)
         for nimodel in availablNI:
             a = self.nigroup.addAction(QAction(nimodel, checkable=True))
             if nimodel == 'Couderc_2014':
@@ -277,8 +272,8 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                                     X * twolist[1].m + twolist[1].b)), label='Two defects fit' + data.name)
 
         self.ax1.legend(loc=0)
-        self.canvas.draw()
         self.figure.tight_layout()
+        self.canvas.draw()
 
     def enablewidgts(self):
         if len(self.listWidget_fit.selectedItems()) == 1:
@@ -320,10 +315,12 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
             float(self.lineEdit_simufitEt.text())
             self.pushButton_1dplot.setEnabled(True)
             self.pushButton_2dplot.setEnabled(True)
+            self.pushButton_exportsimu.setEnabled(True)
             self.pushButton_showfitting.setEnabled(True)
         except ValueError:
             self.pushButton_1dplot.setEnabled(False)
             self.pushButton_2dplot.setEnabled(False)
+            self.pushButton_exportsimu.setEnabled(False)
             self.pushButton_showfitting.setEnabled(False)
 
     def opensetparam2(self):
@@ -404,15 +401,20 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         for action in self.ionmodel.actions():
             if action.isChecked():
                 ionauthor = action.text()
+        for action in self.nimodel.actions():
+            if action.isChecked():
+                ni_author = action.text()
         if doptype == 'n':
-            Nidop = Ion(temp=T).update_dopant_ionisation(
+            Nidop = Ion(temp=T, ni_author=ni_author).update_dopant_ionisation(
                 N_dop=Ndop, nxc=nxc, impurity='phosphorous', author=ionauthor)
-            ne, nh = CF.get_carriers(0, Nidop, nxc, temp=T)
+            ne, nh = CF.get_carriers(
+                0, Nidop, nxc, temp=T, ni_author=ni_author)
             X = np.divide(nxc, ne)
         elif doptype == 'p':
-            Nidop = Ion(temp=T).update_dopant_ionisation(
+            Nidop = Ion(temp=T, ni_author=ni_author).update_dopant_ionisation(
                 N_dop=Ndop, nxc=nxc, impurity='boron', author=ionauthor)
-            ne, nh = CF.get_carriers(Nidop, 0, nxc, temp=T)
+            ne, nh = CF.get_carriers(
+                Nidop, 0, nxc, temp=T, ni_author=ni_author)
             X = np.divide(nxc, nh)
         return X
 
@@ -534,9 +536,6 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.currentfitres = [fitres(
             name='single defect_' + data2fit.name, Ndop=data2fit.Ndop, temp=data2fit.temp, doptype=data2fit.doptype, m=m, b=b, parentid=data2fit.uid)]
 
-    def twolevelfit(self):
-        pass
-
     def acceptfit(self):
         self.pushButton_acceptfit.setEnabled(False)
         self.fitreslist.extend(self.currentfitres)
@@ -570,13 +569,13 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         ne1 = ni * np.exp(Et * const.e / (const.k * T))
         vth_e, vth_h = the_vel().update(temp=T, author=vth_author)
         if doptype == 'n':
-            Nd = Ion(temp=T).update_dopant_ionisation(
+            Nd = Ion(temp=T, ni_author=ni_author).update_dopant_ionisation(
                 N_dop=Ndop, nxc=nxc, impurity='phosphorous', author=ionauthor)
             Na = 0
             tau_e = tau_m * vth_h300 / vth_e / k
             tau_h = tau_m * vth_h300 / vth_h
         elif doptype == 'p':
-            Na = Ion(temp=T).update_dopant_ionisation(
+            Na = Ion(temp=T, ni_author=ni_author).update_dopant_ionisation(
                 N_dop=Ndop, nxc=0, impurity='boron', author=ionauthor)
             Nd = 0
             tau_e = tau_m * vth_e300 / vth_e
@@ -592,13 +591,13 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         for nxc, tau, Ndop, doptype, T in zip(nxclist, taulist, Ndoplist, doptypelist, Tlist):
             vth_e, vth_h = the_vel().update(temp=T, author=vth_author)
             if doptype == 'n':
-                Nd = Ion(temp=T).update_dopant_ionisation(
+                Nd = Ion(temp=T, ni_author=ni_author).update_dopant_ionisation(
                     N_dop=Ndop, nxc=nxc, impurity='phosphorous', author=ionauthor)
                 Na = 0
                 tausimu = self.SRHtau(nxc=nxc, Et=Et, tau_e=taum * vth_h300 / vth_e / k,
                                       tau_h=taum * vth_h300 / vth_h, T=T, Na=Na, Nd=Nd, ni_author=ni_author)
             elif doptype == 'p':
-                Na = Ion(temp=T).update_dopant_ionisation(
+                Na = Ion(temp=T, ni_author=ni_author).update_dopant_ionisation(
                     N_dop=Ndop, nxc=0, impurity='boron', author=ionauthor)
                 Nd = 0
                 tausimu = self.SRHtau(nxc=nxc, Et=Et, tau_e=taum * vth_e300 / vth_e,
@@ -813,6 +812,9 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.NTbuttom = QPushButton('Display Newton method result')
         self.NTbuttom.clicked.connect(self.NT)
         self.dpssvlayout.addWidget(self.NTbuttom)
+        self.Exportbuttom = QPushButton('Export results')
+        self.Exportbuttom.clicked.connect(self.exportind)
+        self.dpssvlayout.addWidget(self.Exportbuttom)
         if len(self.listWidget_fitres.selectedItems()) < 2:
             self.NTbuttom.setEnabled(False)
         self.figure2 = plt.figure()
@@ -837,7 +839,10 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         self.ax3.semilogy()
         self.ax4.semilogy()
         self.ax44.semilogy()
-        klist = []
+        self.klist = []
+        self.tauminorlist = []
+        self.dpsshead1 = 'Et'
+        self.dpsshead2 = ''
         for item in self.listWidget_fitres.selectedItems():
             for fitres in self.fitreslist:
                 if fitres.uid == item.data(32):
@@ -845,10 +850,15 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                         m=fitres.m, b=fitres.b, T=fitres.temp, Ndop=fitres.Ndop, doptype=fitres.doptype)
                     self.ax3.plot(EtRange, TauMinor, label=fitres.name)
                     self.ax4.plot(EtRange, k, label=fitres.name)
-                    klist.append(k)
-        klist = np.asarray(klist)
-        stdk = np.std(klist, axis=0)
-        self.ax44.plot(EtRange, stdk)
+                    self.klist.append(k)
+                    self.tauminorlist.append(TauMinor)
+                    self.dpsshead1 += ',k' + fitres.name
+                    self.dpsshead2 += ',TauMinor' + fitres.name
+        self.Etlist = EtRange
+        self.dpsshead2 += ',StdDev'
+        klist = np.asarray(self.klist)
+        self.stdk = np.std(klist, axis=0)
+        self.ax44.plot(EtRange, self.stdk)
         self.ax4.legend(loc=0)
         self.figure2.subplots_adjust(left=0.13, bottom=0.06,
                                      right=0.9, top=0.96, wspace=0, hspace=0.23)
@@ -870,11 +880,11 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         TauMinor = np.ones(EtRange.shape[0])
         vth_e, vth_h = the_vel().update(temp=T, author=theauthor)
         if doptype == 'n':
-            Nidop = Ion(temp=T).update_dopant_ionisation(
+            Nidop = Ion(temp=T, ni_author=ni_author).update_dopant_ionisation(
                 N_dop=Ndop, nxc=0, impurity='phosphorous', author=ionauthor)
             n0, p0 = CF.get_carriers(0, Nidop, 0, temp=T)
         elif doptype == 'p':
-            Nidop = Ion(temp=T).update_dopant_ionisation(
+            Nidop = Ion(temp=T, ni_author=ni_author).update_dopant_ionisation(
                 N_dop=Ndop, nxc=0, impurity='boron', author=ionauthor)
             n0, p0 = CF.get_carriers(Nidop, 0, 0, temp=T)
         for j in range(0, EtRange.shape[0]):
@@ -914,7 +924,8 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         doplist = []
         Tlist = []
         doptypelist = []
-        for item in self.listWidget_fitres.selectedItems():
+        self.ntlist = []
+        for item in self.listWidget_fitres.s·electedItems():
             for fitres in self.fitreslist:
                 if fitres.uid == item.data(32):
                     mlist.append(fitres.m)
@@ -931,12 +942,15 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
         resdownall = nt.NewtonMethodDOWN(x0=x0, mb=mb,
                                          CaldtsList=CaldtsList, MaxIntNum=2000)
         if resupall is not np.nan:
-            self.ax3.plot([resupall[0], resdownall[0]], [
-                          resupall[1], resdownall[1]], 'ro')
+            self.ntlist.append(resupall.reshape(3,))
+            self.ax3.plot([resupall[0]], [resupall[1]], 'ro')
+            self.ax4.plot([resupall[0]], [resupall[2]], 'ro')
         if resdownall is not np.nan:
-            self.ax4.plot([resupall[0], resdownall[0]], [
-                          resupall[2], resdownall[2]], 'ro')
+            self.ntlist.append(resdownall.reshape(3,))
+            self.ax3.plot([resdownall[0]], [resdownall[1]], 'ro')
+            self.ax4.plot([resdownall[0]], [resdownall[2]], 'ro')
         if len(self.listWidget_fitres.selectedItems()) > 2:
+            self.ntlist.append(np.asarray([0, 0, 0]))
             for i in range(len(self.listWidget_fitres.selectedItems()) - 1):
                 for j in range(i + 1, len(self.listWidget_fitres.selectedItems())):
                     m2list = [mlist[i], mlist[j]]
@@ -953,16 +967,65 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                     resdown2 = nt.NewtonMethodDOWN(x0=x0, mb=mb2,
                                                    CaldtsList=CaldtsList2, MaxIntNum=2000)
                     if resup2 is not np.nan:
-                        self.ax3.plot([resup2[0], resdown2[0]], [
-                                      resup2[1], resdown2[1]], 'ko')
+                        self.ntlist.append(resup2.reshape(3,))
+                        self.ax3.plot([resup2[0]], [resup2[1]], 'ko')
+                        self.ax4.plot([resup2[0]], [resup2[2]], 'ko')
                     if resdown2 is not np.nan:
-                        self.ax4.plot([resup2[0], resdown2[0]], [
-                                      resup2[2], resdown2[2]], 'ko')
+                        self.ntlist.append(resdown2.reshape(3,))
+                        self.ax3.plot([resdown2[0]], [resdown2[1]], 'ko')
+                        self.ax4.plot([resdown2[0]], [resdown2[2]], 'ko')
         self.canvas2.draw()
+
+    def exportind(self):
+        path = QFileDialog.getExistingDirectory(
+            parent=self, caption='Select path for data export')
+        fdpssname = os.path.join(
+            path, str(tm.mktime(tm.localtime())) + '_res_DPSS.csv')
+        fntname = os.path.join(
+            path, str(tm.mktime(tm.localtime())) + '_res_NT.csv')
+        alllist = [self.Etlist] + self.klist + self.tauminorlist + [self.stdk]
+        alllist = np.asarray(alllist).T
+        ntlist = np.asarray(self.ntlist)
+        np.savetxt(fdpssname, alllist, delimiter=',',
+                   header=self.dpsshead1 + self.dpsshead2, comments='')
+        np.savetxt(fntname, ntlist, delimiter=',',
+                   header='Et,k,TauMinor', comments='')
+
+    def exportsimu(self):
+        path = QFileDialog.getExistingDirectory(
+            parent=self, caption='Select path for data export')
+        f2dresi = os.path.join(
+            path, str(tm.mktime(tm.localtime())) + '_res_residualmap.csv')
+        f2dtauminor = os.path.join(
+            path, str(tm.mktime(tm.localtime())) + '_res_tauminormap.csv')
+        np.savetxt(f2dresi, self.residualmap, delimiter=',')
+        if self.taummap[0, 0].shape == ():
+            np.savetxt(f2dtauminor, self.taummap, delimiter=',')
+        else:
+            for i in range(self.taummap[0, 0].shape[-1]):
+                f2dtauminor = os.path.join(
+                    path, str(tm.mktime(tm.localtime())) + '_res_tauminormap_' + str(i) + '.csv')
+                np.savetxt(f2dtauminor, self.taummap[:, :, i], delimiter=',')
+
+    def expplot2(self):
+        path = QFileDialog.getExistingDirectory(
+            parent=self, caption='Select path for data export')
+        fname = os.path.join(
+            path, str(tm.mktime(tm.localtime())) + '_lifetimeandfitplot.csv')
+        data = {}
+        for line in self.ax1.get_lines():
+            data[line.get_label() + '_' + self.ax1.get_xlabel()
+                 ] = line.get_xdata()
+            data[line.get_label() + '_' + self.ax1.get_ylabel()
+                 ] = line.get_ydata()
+        df = pd.DataFrame.from_dict(
+            data, orient='index').transpose().fillna('')
+        df.to_csv(fname, index=False)
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    LSana_dpss = LSana_dpss(rawdata=None, uidlist=None, mainwindow=LSana_dpss)
+    LSana_dpss = LSana_dpss(rawdata=None, uidlist=None,
+                            mainwindow=LSana_dpss)
     LSana_dpss.show()
     sys.exit(app.exec_())
