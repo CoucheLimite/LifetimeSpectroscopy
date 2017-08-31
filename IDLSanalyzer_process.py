@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import os
+import time as tm
 import openpyxl as xls
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QListWidgetItem, QLineEdit, QLabel, QRadioButton, QGridLayout, QPushButton, QAction, QActionGroup, QMenu, QInputDialog
 from PyQt5 import QtGui, QtWidgets
@@ -15,10 +16,12 @@ from semiconductor.recombination.intrinsic import Radiative as rad
 from semiconductor.recombination.intrinsic import Auger as aug
 from semiconductor.material.intrinsic_carrier_density import IntrinsicCarrierDensity as NI
 from semiconductor.electrical.ionisation import Ionisation as Ion
+import scipy.constants as const
+import pandas as pd
 
 
 class rawdata(object):
-    def __init__(self, name=None, Ndop=None, temp=None, doptype=None, nxc=None, tau=None, PCPL='PC', plotopt=True, uid=None, **kwarg):
+    def __init__(self, name=None, Ndop=None, temp=None, doptype=None, nxc=None, tau=None, PCPL='PC', thickness=None, j0=None, plotopt=True, uid=None, **kwarg):
         self.name = name
         self.Ndop = Ndop
         self.temp = temp
@@ -28,6 +31,8 @@ class rawdata(object):
         self.uid = uid
         self.plotopt = plotopt
         self.PCPL = PCPL
+        self.thickness = thickness
+        self.j0 = j0
 
     def checkset(self):
         if (self.Ndop is None) or (self.temp is None) or (self.doptype is None):
@@ -102,7 +107,6 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
             self.updatedataplot)
 
         self.pushButton_expdata.clicked.connect(self.export)
-        self.pushButton_expdata.setEnabled(False)
 
         self.pushButton_corp.clicked.connect(self.croppreview)
         self.pushButton_corp.setEnabled(False)
@@ -121,12 +125,17 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
 
         self.lineEdit_croplow.textChanged[str].connect(self.checkcorp)
         self.lineEdit_crophigh.textChanged[str].connect(self.checkcorp)
+        self.lineEdit_j0.textChanged[str].connect(self.checkj0)
+        self.lineEdit_thickness.textChanged[str].connect(self.checkj0)
 
         self.pushButton_corpconfirm.setEnabled(False)
         self.pushButton_corpconfirm.clicked.connect(self.crop)
 
         self.pushButton_corpcancel.setEnabled(False)
         self.pushButton_corpcancel.clicked.connect(self.cropcancel)
+
+        self.pushButton_j0correction.clicked.connect(self.j0correction)
+        self.pushButton_j0correction.setEnabled(False)
 
         availablNI = NI().available_models()
         availablRad = rad().available_models()
@@ -206,12 +215,14 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                     ws1 = wb['User']
                     Ndop = ws1['J9'].value
                     doptype = ws1['D6'].value[0]
+                    thickness = ws1['B6'].value
+                    j0 = ws1['D9'].value
                     if ws1['L8'].value[0] == 'T':
                         temp = ws1['L9'].value + 273.15
                     else:
                         temp = 303
                     Sinton = rawdata(
-                        name='Sinton_' + (os.path.splitext(os.path.basename(fname))[0]), nxc=nxc, tau=tau, PCPL='PC', Ndop=Ndop, doptype=doptype, temp=temp)
+                        name='Sinton_' + (os.path.splitext(os.path.basename(fname))[0]), nxc=nxc, tau=tau, PCPL='PC', Ndop=Ndop, doptype=doptype, temp=temp, thickness=thickness, j0=j0)
                     self.Rawdata.append(Sinton)
 
                 self.updateuid()
@@ -273,8 +284,8 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                                           '.', label=data.name)
         self.ax1.semilogx()
         self.ax1.legend(loc=0)
-        self.canvas.draw()
         self.figure.tight_layout()
+        self.canvas.draw()
 
     def deldata(self):
         for item in self.listWidget_data.selectedItems():
@@ -309,8 +320,12 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
         self.ptype = QRadioButton('p-type')
         self.dop = QLineEdit()
         self.temp = QLineEdit()
+        self.jj0 = QLineEdit()
+        self.thick = QLineEdit()
         Ldop = QLabel('Ndop (cm-3)')
         Ltemp = QLabel('Temp (K)')
+        Lj0 = QLabel('J0 (A/cm2)')
+        Lthick = QLabel('Thickness (cm)')
         self.ok = QPushButton('OK')
         self.ok.setEnabled(False)
         grid.addWidget(self.ntype, 0, 0)
@@ -319,7 +334,11 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
         grid.addWidget(self.dop, 1, 1)
         grid.addWidget(Ltemp, 2, 0)
         grid.addWidget(self.temp, 2, 1)
-        grid.addWidget(self.ok, 3, 1)
+        grid.addWidget(Lj0, 3, 0)
+        grid.addWidget(self.jj0, 3, 1)
+        grid.addWidget(Lthick, 4, 0)
+        grid.addWidget(self.thick, 4, 1)
+        grid.addWidget(self.ok, 5, 1)
         for data in self.Rawdata:
             if data.uid == self.listWidget_data.selectedItems()[0].data(32):
                 if data.Ndop is not None:
@@ -330,19 +349,38 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                     self.ntype.setChecked(True)
                 if data.doptype == 'p':
                     self.ptype.setChecked(True)
+                if data.j0 is not None:
+                    self.jj0.setText('{:e}'.format(data.j0))
+                if data.thickness is not None:
+                    self.thick.setText(str(data.thickness))
         self.dop.textChanged[str].connect(self.checkparam)
         self.temp.textChanged[str].connect(self.checkparam)
+        self.thick.textChanged[str].connect(self.checkparam)
+        self.jj0.textChanged[str].connect(self.checkparam)
         self.ntype.toggled.connect(self.checkparam)
         self.ok.clicked.connect(self.setparam)
         self.dialog.exec_()
 
     def checkparam(self):
         try:
-            float(self.dop.text())
-            float(self.temp.text())
-            self.ok.setEnabled(True)
+            if float(self.dop.text()) > 0 and float(self.temp.text()) > 0 and len(self.listWidget_data.selectedItems()) == 1:
+                self.ok.setEnabled(True)
+            else:
+                self.ok.setEnabled(False)
         except ValueError:
             self.ok.setEnabled(False)
+        if self.thick.text() != "":
+            try:
+                if float(self.thick.text()) < 0:
+                    self.ok.setEnabled(False)
+            except ValueError:
+                self.ok.setEnabled(False)
+        if self.jj0.text() != "":
+            try:
+                if float(self.jj0.text()) < 0:
+                    self.ok.setEnabled(False)
+            except ValueError:
+                self.ok.setEnabled(False)
 
     def checkcorp(self):
         self.pushButton_corpconfirm.setEnabled(False)
@@ -360,6 +398,11 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
             if data.uid == self.listWidget_data.selectedItems()[0].data(32):
                 data.Ndop = float(self.dop.text())
                 data.temp = float(self.temp.text())
+                try:
+                    data.j0 = float(self.jj0.text())
+                    data.thickness = float(self.thick.text())
+                except ValueError:
+                    pass
                 if self.ntype.isChecked():
                     data.doptype = 'n'
                 if self.ptype.isChecked():
@@ -372,7 +415,6 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
             self.pushButton_del.setEnabled(True)
             self.pushButton_corp.setEnabled(True)
             self.pushButton_data2plot.setEnabled(True)
-            self.pushButton_expdata.setEnabled(True)
             i = 0
             for item in self.listWidget_data.selectedItems():
                 for data in self.Rawdata:
@@ -382,13 +424,36 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
             if i == 0:
                 self.pushButton_data2fit.setEnabled(False)
                 self.pushButton_intcorrect.setEnabled(False)
+                self.pushButton_j0correction.setEnabled(False)
+            elif i == 1:
+                self.pushButton_j0correction.setEnabled(True)
+                self.pushButton_data2fit.setEnabled(True)
+                self.pushButton_intcorrect.setEnabled(True)
             else:
                 self.pushButton_data2fit.setEnabled(True)
                 self.pushButton_intcorrect.setEnabled(True)
+                self.pushButton_j0correction.setEnabled(False)
+
             if len(self.listWidget_data.selectedItems()) == 1:
                 self.pushButton_set.setEnabled(True)
+                for item in self.listWidget_data.selectedItems():
+                    for data in self.Rawdata:
+                        if data.uid == item.data(32):
+                            if data.j0 is not None:
+                                self.lineEdit_j0.setText(
+                                    '{:.2e}'.format(data.j0))
+                            else:
+                                self.lineEdit_j0.clear()
+                            if data.thickness is not None:
+                                self.lineEdit_thickness.setText(
+                                    str(data.thickness))
+                            else:
+                                self.lineEdit_thickness.clear()
             else:
                 self.pushButton_set.setEnabled(False)
+                self.pushButton_intcorrect.setEnabled(False)
+                self.lineEdit_j0.clear()
+                self.lineEdit_thickness.clear()
             if len(self.listWidget_data.selectedItems()) == 2:
                 self.pushButton_sub2data.setEnabled(True)
                 self.pushButton_mergetwo.setEnabled(True)
@@ -400,11 +465,12 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
             self.pushButton_mergetwo.setEnabled(False)
             self.pushButton_intcorrect.setEnabled(False)
             self.pushButton_corp.setEnabled(False)
-            self.pushButton_expdata.setEnabled(False)
             self.pushButton_del.setEnabled(False)
             self.pushButton_data2plot.setEnabled(False)
             self.pushButton_set.setEnabled(False)
             self.pushButton_data2fit.setEnabled(False)
+            self.lineEdit_j0.clear()
+            self.lineEdit_thickness.clear()
 
         if len(self.listWidget_analysis.selectedItems()) > 0:
             self.pushButton_delanalysis.setEnabled(True)
@@ -423,6 +489,17 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
         else:
             self.pushButton_Analysis.setEnabled(False)
         self.checkcorp()
+        self.checkj0()
+
+    def checkj0(self):
+        self.pushButton_j0correction.setEnabled(False)
+        try:
+            if float(self.lineEdit_j0.text()) > 0 and float(self.lineEdit_thickness.text()) > 0:
+                self.pushButton_j0correction.setEnabled(True)
+            else:
+                self.pushButton_j0correction.setEnabled(False)
+        except:
+            self.pushButton_j0correction.setEnabled(False)
 
     def add2analysis(self):
         for item in self.listWidget_data.selectedItems():
@@ -447,7 +524,19 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                 self.listWidget_analysis.row(item))
 
     def export(self):
-        pass
+        path = QFileDialog.getExistingDirectory(
+            parent=self, caption='Select path for data export')
+        fname = os.path.join(
+            path, str(tm.mktime(tm.localtime())) + '_lifetimeplot.csv')
+        data = {}
+        for line in self.ax1.get_lines():
+            data[line.get_label() + '_' + self.ax1.get_xlabel()
+                 ] = line.get_xdata()
+            data[line.get_label() + '_' + self.ax1.get_ylabel()
+                 ] = line.get_ydata()
+        df = pd.DataFrame.from_dict(
+            data, orient='index').transpose().fillna('')
+        df.to_csv(fname, index=False)
 
     def croppreview(self):
         self.ax1.clear()
@@ -536,6 +625,7 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                 ionauthor = action.text()
         for item in self.listWidget_data.selectedItems():
             intrinsic = rawdata()
+            tauint = rawdata()
             for data in self.Rawdata:
                 if data.uid == item.data(32) and data.checkset() == True:
                     intrinsic.name = 'IntrinsicCorrected_' + data.name
@@ -544,20 +634,28 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                     intrinsic.doptype = data.doptype
                     intrinsic.PCPL = data.PCPL
                     intrinsic.nxc = data.nxc
+                    tauint.name = 'Intrinsic_' + data.name
+                    tauint.Ndop = data.Ndop
+                    tauint.temp = data.temp
+                    tauint.doptype = data.doptype
+                    tauint.PCPL = data.PCPL
+                    tauint.nxc = data.nxc
                     ni = NI(temp=data.temp).update(author=niauthor)
                     if data.doptype == 'n':
-                        Nd = Ion(temp=data.temp).update_dopant_ionisation(
+                        Nd = Ion(temp=data.temp, ni_author=ni_author).update_dopant_ionisation(
                             author=ionauthor, N_dop=data.Ndop, nxc=0, impurity='phosphorous')
                         Na = 1
                     if data.doptype == 'p':
-                        Na = Ion(temp=data.temp).update_dopant_ionisation(
+                        Na = Ion(temp=data.temp, ni_author=ni_author).update_dopant_ionisation(
                             author=ionauthor, N_dop=data.Ndop, nxc=0, impurity='boron')
                         Nd = 1
                     itauintrin = rad().itau(ni_author=niauthor, author=radauthor, temp=data.temp, Na=Na, Nd=Nd, nxc=data.nxc) + \
                         aug().itau(ni_author=niauthor, author=augauthor,
                                    temp=data.temp, Na=Na, Nd=Nd, nxc=data.nxc)
                     intrinsic.tau = 1. / (1. / data.tau - itauintrin)
+                    tauint.tau = 1. / (itauintrin)
             self.Rawdata.append(intrinsic)
+            self.Rawdata.append(tauint)
         self.updateuid()
         self.updateDataList()
         self.updateplotlist()
@@ -721,6 +819,48 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
             rawdata=self.Rawdata, uidlist=uidlist, mainwindow=LSana)
         LSana.hide()
         self.IDLSanalyzer_dpss.show()
+
+    def j0correction(self):
+        for action in self.Ionmodel.actions():
+            if action.isChecked():
+                ionauthor = action.text()
+        for action in self.nimodel.actions():
+            if action.isChecked():
+                niauthor = action.text()
+        for item in self.listWidget_data.selectedItems():
+            J0 = rawdata()
+            J0corrected = rawdata()
+            for data in self.Rawdata:
+                if data.uid == item.data(32) and data.checkset() == True:
+                    J0corrected.name = 'J0Corrected_' + data.name
+                    J0corrected.Ndop = data.Ndop
+                    J0corrected.temp = data.temp
+                    J0corrected.doptype = data.doptype
+                    J0corrected.PCPL = data.PCPL
+                    J0corrected.nxc = data.nxc
+                    J0.name = 'J0_' + data.name
+                    J0.Ndop = data.Ndop
+                    J0.temp = data.temp
+                    J0.doptype = data.doptype
+                    J0.PCPL = data.PCPL
+                    J0.nxc = data.nxc
+                    ni = NI(temp=data.temp).update(author=niauthor)
+                    if data.doptype == 'n':
+                        iNdop = Ion(temp=data.temp, ni_author=ni_author).update_dopant_ionisation(
+                            author=ionauthor, N_dop=data.Ndop, nxc=0, impurity='phosphorous')
+                    if data.doptype == 'p':
+                        iNdop = Ion(temp=data.temp, ni_author=ni_author).update_dopant_ionisation(
+                            author=ionauthor, N_dop=data.Ndop, nxc=0, impurity='boron')
+                    itauj0 = 2 * float(self.lineEdit_j0.text()) * (iNdop + data.nxc) / \
+                        const.e / float(self.lineEdit_thickness.text()) / ni**2
+                    J0corrected.tau = 1. / (1. / data.tau - itauj0)
+                    J0.tau = 1. / (itauj0)
+            self.Rawdata.append(J0corrected)
+            self.Rawdata.append(J0)
+        self.updateuid()
+        self.updateDataList()
+        self.updateplotlist()
+        self.updatedataplot()
 
 
 if __name__ == '__main__':
