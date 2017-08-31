@@ -628,6 +628,7 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                     taummap[m, n, t] = fitres.x
                     residualmap[m, n] += fitres.fun
                     ctperc += 1 / len(Etlist) / len(klist) / len(nxclist)
+                    QApplication.processEvents()
                     self.progressBar.setValue(ctperc * 100)
         return taummap, residualmap
 
@@ -646,6 +647,7 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
                 taummap[m, n] = fitres.x
                 residualmap[m, n] = fitres.fun
                 ctperc += 1 / len(Etlist) / len(klist)
+                QApplication.processEvents()
                 self.progressBar.setValue(ctperc * 100)
         return taummap, residualmap
 
