@@ -13,11 +13,13 @@ Simply download all the files and double click IDLSanalyzer.py or run it with Py
 
 ### Prerequisites
 1. Install Python 3.6
-2. Install numpy, scipy, matplotlib, openpyxl (for windows uuser, it isrecommended to get thses packages from http://www.lfd.uci.edu/~gohlke/pythonlibs/ and use pip to install)
+2. Install numpy, scipy, matplotlib, openpyxl (for windows uuser, it is recommended to get thses packages from http://www.lfd.uci.edu/~gohlke/pythonlibs/ and use pip to install, be careful when choose the version)
 3. Install semiconductor from MK8J's Github from https://github.com/MK8J/semiconductor (You can download the whl file in the dist folder using pip)
-4. install PyQt5
+4. install PyQt5 using pip install PtQt5
+5. intall pandas using pip install pandas
 
-The GUI is written in Python 3.6, but should work with any Python 3.x and 2.x if all the needed packages are installed (have't been tested yet)
+It seems the PyQt5 only support python v3.5 and later. Sorry for users of other versions!
+The GUI is written and tested in 64-bit platform, but it should work well in 32-bit platform. Please let me know if you met any issues.
 
 ## Usage
 
@@ -50,9 +52,13 @@ If you have any problems or suggestions, please feel free to contact me.
 ## Update log
 14/08/2017 Major updates, simutaneously fitting enabled
 26/08/2017 Add plot of the standard deviation of the DPSS curves
+31/08/2017 MajorEnable to export the data in the plot and the calculation of the standard deviation of the DPSS curves. Fixed some bugs in changing model.
 
 To be completed:
-1. Surface recombination subtraction
-2. Fitting of one defect with two levels
+1. <strike> Surface recombination subtraction </strike><br/>
+2. <strike> Export data </strike><br/>
 3. <strike> Calculation of the standard deviation of the DPSS curves</strike><br/>
-4. Export data
+4. Complete the coding for advanced fitting mode
+5. Add the consideration of measurement uncertainty to calculate Chi-squared error.
+6. Add the option to minimize the Chi-squared error. (Currently it minimize the sum of squared error)
+7. Add the function to get the acceptance range of fitting result.
