@@ -19,6 +19,7 @@ Simply download all the files and double click IDLSanalyzer.py or run it with Py
 5. intall pandas using pip install pandas
 
 It seems the PyQt5 only support python v3.5 and later. Sorry for users of other versions!
+It seems the PyQt5 built in conda or miniconda have some problems here. Sorry for the conda users!
 The GUI is written and tested in 64-bit platform, but it should work well in 32-bit platform. Please let me know if you met any issues.
 
 ## Usage
