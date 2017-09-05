@@ -24,13 +24,14 @@ The GUI is written and tested in 64-bit platform, but it should work well in 32-
 
 ## Usage
 
-1. Load the file
-2. Set or check parameters. (The color of the file will change to green after setting the parameters. Parameters will be read directly for Sinton excel files.)
-3. Process if you want. (merge two files, crop, inverse subtraction, subtract intrinsic)
-4. Add interested file to analysis list and start analysis
-5. Choose either fitting individually or fitting simultaneouly
-6. For fitting individually, choose just one file, select to fit with one defect or two (you can adjust the percentage for fitting the initial value), accept fitting if you are satisfied, choose the fiited defects for DPSS or Newton method 
-7. For fitting simultaneouly, choose multiple files and set the fitting range, and click fit. This method can take a long time so start with less steps
+1. Open the IDLSanalyzer_process.py , not the IDLSanalyzer_dpss.py
+2. Load the file
+3. Set or check parameters. (The color of the file will change to green after setting the parameters. Parameters will be read directly for Sinton excel files.)
+4. Process if you want. (merge two files, crop, inverse subtraction, subtract intrinsic)
+5. Add interested file to analysis list and start analysis
+6. Choose either fitting individually or fitting simultaneouly
+7. For fitting individually, choose just one file, select to fit with one defect or two (you can adjust the percentage for fitting the initial value), accept fitting if you are satisfied, choose the fiited defects for DPSS or Newton method 
+8. For fitting simultaneouly, choose multiple files and set the fitting range, and click fit. This method can take a long time so start with less steps
 
 Everything should be pretty straightfoward to use. Each pushbuttom is enabled only after all the necessary requirements are met. (correct selection from the list, parameters inputed, ect.)
 If you have any problems or suggestions, please feel free to contact me.
