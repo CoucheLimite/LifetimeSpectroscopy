@@ -613,7 +613,7 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
     def correctintrinsic(self):
         for action in self.nimodel.actions():
             if action.isChecked():
-                niauthor = action.text()
+                ni_author = action.text()
         for action in self.Radmodel.actions():
             if action.isChecked():
                 radauthor = action.text()
@@ -640,7 +640,7 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                     tauint.doptype = data.doptype
                     tauint.PCPL = data.PCPL
                     tauint.nxc = data.nxc
-                    ni = NI(temp=data.temp).update(author=niauthor)
+                    ni = NI(temp=data.temp).update(author=ni_author)
                     if data.doptype == 'n':
                         Nd = Ion(temp=data.temp, ni_author=ni_author).update_dopant_ionisation(
                             author=ionauthor, N_dop=data.Ndop, nxc=0, impurity='phosphorous')
@@ -649,8 +649,8 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                         Na = Ion(temp=data.temp, ni_author=ni_author).update_dopant_ionisation(
                             author=ionauthor, N_dop=data.Ndop, nxc=0, impurity='boron')
                         Nd = 1
-                    itauintrin = rad().itau(ni_author=niauthor, author=radauthor, temp=data.temp, Na=Na, Nd=Nd, nxc=data.nxc) + \
-                        aug().itau(ni_author=niauthor, author=augauthor,
+                    itauintrin = rad().itau(ni_author=ni_author, author=radauthor, temp=data.temp, Na=Na, Nd=Nd, nxc=data.nxc) + \
+                        aug().itau(ni_author=ni_author, author=augauthor,
                                    temp=data.temp, Na=Na, Nd=Nd, nxc=data.nxc)
                     intrinsic.tau = 1. / (1. / data.tau - itauintrin)
                     tauint.tau = 1. / (itauintrin)
@@ -826,7 +826,7 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                 ionauthor = action.text()
         for action in self.nimodel.actions():
             if action.isChecked():
-                niauthor = action.text()
+                ni_author = action.text()
         for item in self.listWidget_data.selectedItems():
             J0 = rawdata()
             J0corrected = rawdata()
@@ -844,7 +844,7 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                     J0.doptype = data.doptype
                     J0.PCPL = data.PCPL
                     J0.nxc = data.nxc
-                    ni = NI(temp=data.temp).update(author=niauthor)
+                    ni = NI(temp=data.temp).update(author=ni_author)
                     if data.doptype == 'n':
                         iNdop = Ion(temp=data.temp, ni_author=ni_author).update_dopant_ionisation(
                             author=ionauthor, N_dop=data.Ndop, nxc=0, impurity='phosphorous')
