@@ -995,11 +995,12 @@ class LSana_dpss(QMainWindow, Ui_IDLS_analyzer_dpss):
             path, str(tm.mktime(tm.localtime())) + '_res_NT.csv')
         alllist = [self.Etlist] + self.klist + self.tauminorlist + [self.stdk]
         alllist = np.asarray(alllist).T
-        ntlist = np.asarray(self.ntlist)
         np.savetxt(fdpssname, alllist, delimiter=',',
                    header=self.dpsshead1 + self.dpsshead2, comments='')
-        np.savetxt(fntname, ntlist, delimiter=',',
-                   header='Et,k,TauMinor', comments='')
+        if hasattr(self, 'ntlist'):
+            ntlist = np.asarray(self.ntlist)
+            np.savetxt(fntname, ntlist, delimiter=',',
+                       header='Et,TauMinor,k', comments='')
 
     def exportsimu(self):
         path = QFileDialog.getExistingDirectory(
