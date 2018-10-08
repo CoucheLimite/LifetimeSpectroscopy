@@ -17,6 +17,7 @@ Simply download all the files and double click IDLSanalyzer.py or run it with Py
 3. Install semiconductor from MK8J's Github from https://github.com/MK8J/semiconductor (You can download the whl file in the dist folder using pip)
 4. install PyQt5 using pip install PtQt5
 5. intall pandas using pip install pandas
+5. intall ruamel.yaml using pip install ruamel.yaml (required for the semiconductor package)
 
 It seems the PyQt5 only support python v3.5 and later. Sorry for users of other versions!
 It seems the PyQt5 built in conda or miniconda have some problems here. Sorry for the conda users!
