@@ -204,9 +204,20 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                     tau = []
                     wb = xls.load_workbook(filename=fname, data_only=True)
                     ws = wb['RawData']
-                    for row in ws.iter_rows('E5:G124'):
-                        tau.append(row[0].value)
-                        nxc.append(row[-1].value)
+                    for col in ws.iter_cols(min_col=4, max_col=10, min_row=1,max_row=1):
+                        if col[0].value == 'Tau (sec)':
+                            taucol = col[0].column
+                            break
+                    for col in ws.iter_cols(min_col=4, max_col=10, min_row=1,max_row=1):
+                        if col[0].value == 'Minority Carrier Density':
+                            mcdcol = col[0].column
+                            break
+                    for row in ws.iter_rows(taucol + '5:' + taucol + str(lenth)):
+                        if row[0].value is not None and row[-1].value is not None:
+                            tau.append(row[0].value)
+                    for row in ws.iter_rows(mcdcol + '5:' + mcdcol + str(lenth)):
+                        if row[0].value is not None and row[-1].value is not None:
+                            nxc.append(row[-1].value)
                     nxc = np.asarray(nxc)
                     tau = np.asarray(tau)
                     idx = np.argsort(nxc)
