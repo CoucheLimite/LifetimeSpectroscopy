@@ -204,6 +204,7 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
                     tau = []
                     wb = xls.load_workbook(filename=fname, data_only=True)
                     ws = wb['RawData']
+                    lenth = ws.max_row
                     for col in ws.iter_cols(min_col=4, max_col=10, min_row=1,max_row=1):
                         if col[0].value == 'Tau (sec)':
                             taucol = col[0].column
