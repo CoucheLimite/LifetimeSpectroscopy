@@ -15,7 +15,7 @@ Simply download all the files and double click IDLSanalyzer.py or run it with Py
 1. Install Python 3.6
 2. Install numpy, scipy, matplotlib, openpyxl (for windows uuser, it is recommended to get thses packages from http://www.lfd.uci.edu/~gohlke/pythonlibs/ and use pip to install, be careful when choose the version)
 3. Install semiconductor from MK8J's Github from https://github.com/MK8J/semiconductor (You can download the whl file in the dist folder using pip)
-4. install PyQt5 using pip install PtQt5
+4. install PyQt5 using pip install PyQt5
 5. intall pandas using pip install pandas
 5. intall ruamel.yaml using pip install ruamel.yaml (required for the semiconductor package)
 
