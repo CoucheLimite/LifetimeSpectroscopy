@@ -149,10 +149,10 @@ class LSana(QMainWindow, Ui_IDLSanalyzer):
         self.Radmodel = self.choosmodel.addMenu('Radiative models')
         self.Augmodel = self.choosmodel.addMenu('Auger models')
 
-        self.nigroup = QActionGroup(self, exclusive=True)
-        self.radgroup = QActionGroup(self, exclusive=True)
-        self.auggroup = QActionGroup(self, exclusive=True)
-        self.iongroup = QActionGroup(self, exclusive=True)
+        self.nigroup = QActionGroup(self)
+        self.radgroup = QActionGroup(self)
+        self.auggroup = QActionGroup(self)
+        self.iongroup = QActionGroup(self)
 
         for nimodel in availablNI:
             a = self.nigroup.addAction(QAction(nimodel, checkable=True))
